@@ -77,8 +77,8 @@ class TaskManager(object):
         #检测是否重新登录了
         self.check_isRelogin()
         #重新登录、未登录，均跳过
-        if self.isRelogin:
-            return
+        #if self.isRelogin:
+        #    return
         
         #过期任务数组、现在待消费数组、未来任务数组
         modelArray = self.timeTasks
