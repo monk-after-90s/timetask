@@ -20,7 +20,7 @@ import io
 import time
 import gc
 from channel import channel_factory
-
+# todo 定时发给所有人
 class TimeTaskRemindType(Enum):
     NO_Task = 1           #无任务
     Add_Success = 2       #添加任务成功
