@@ -1,4 +1,6 @@
 # encoding:utf-8
+from copy import deepcopy
+
 import plugins
 from bridge.context import ContextType, Context
 from bridge.reply import Reply, ReplyType
@@ -378,8 +380,36 @@ class timetask(Plugin):
             if img_match_prefix:
                 content = content.replace(img_match_prefix, "", 1)
                 context.type = ContextType.IMAGE_CREATE
+            # EACH_FRIEND 每人都发
+            if len(fragments := content.split(" ")) >= 2 and "EACH_FRIEND" in fragments[1]:
+                EACH_FRIEND_conf: dict = {}
+                match = re.search(r'\((.*)\)', fragments[1].strip())
+                if match:
+                    EACH_FRIEND_conf: dict = json.loads(match.group(1))
+                # 排除的微信好友（备注）
+                excluded_friends: list = EACH_FRIEND_conf.get("excluded_friends", [])
+                # 最新全部好友
+                friends = itchat.instance.get_friends(True)
+                # 排除首个好友即自己
+                friends.pop(0)
+                for member in friends:
+                    if (member.RemarkName or member.NickName) in excluded_friends:
+                        continue
+
+                    # 获取回复信息
+                    context1: Context = deepcopy(context)
+                    context1['receiver'] = member.UserName
+                    replay: Reply = \
+                        Bridge().fetch_reply_content(
+                            fragments[0] + (
+                                f"\n\nTo wxuin:{itchat.instance.loginInfo['wxuin']}\nfrom 微信好友：{quote(member.RemarkName or member.NickName)}"
+                                if self.conf.get("append_signature_to_gpt", False) else ""
+                            ),
+                            context1)
+                    self.replay_use_custom(model, replay.content, replay.type, context1)
+                return
             # GPT处理中，发给GPT的消息是否带签名，例如“夸夸我\n\nTo wxuin:505085347\nfrom 微信好友：%E6%AD%A4%E5%B2%B8”
-            if self.conf.get("append_signature_to_gpt", True):
+            elif self.conf.get("append_signature_to_gpt", False):
                 friends = itchat.instance.get_friends(True)
                 for member in friends:
                     if member.UserName == content_dict['from_user_id']:
