@@ -60,8 +60,10 @@ Tips：与机器人对话，发送如下定时任务指令即可
 示例 - GPT：$time 每周三 10:30 GPT 夸一夸我 EACH_FRIEND({"excluded_friends":["老6"]})
 示例 - 画画：$time 每周三 10:30 GPT 画一只小老虎
 示例 - 群任务：$time 每周三 10:30 滴滴滴 group[群标题]
+示例 - 群任务：$time 每周三 10:30 滴滴滴 group[ALL_GROUP]
 
 EACH_FRIEND：GPT消息中，为所有好友添加此定时，可通过额外参数excluded_friends排除某些好友
+ALL_GROUP: GPT消息中，为所有群添加此定时
 拓展功能效果：将在对应时间点，自动执行拓展插件功能，发送早报、点歌、搜索等功能。
 文案提醒效果：将在对应时间点，自动提醒（如：提醒我健身）
 

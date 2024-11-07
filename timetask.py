@@ -210,12 +210,14 @@ class timetask(Plugin):
                 return
             else:
                 channel_name = RobotConfig.conf().get("channel_type", "wx")
-                groupId = taskModel.get_gropID_withGroupTitle(groupTitle, channel_name)
-                if len(groupId) <= 0:
-                    defaultErrorMsg = f"⏰定时任务指令格式异常😭，未找到群名为【{groupTitle}】的群聊，请核查！" + self.get_default_remind(
-                        TimeTaskRemindType.Add_Failed)
-                    self.replay_use_default(defaultErrorMsg, e_context)
-                    return
+                # 所有群
+                if "ALL_GROUP" != groupTitle:
+                    groupId = taskModel.get_gropID_withGroupTitle(groupTitle, channel_name)
+                    if len(groupId) <= 0:
+                        defaultErrorMsg = f"⏰定时任务指令格式异常😭，未找到群名为【{groupTitle}】的群聊，请核查！" + self.get_default_remind(
+                            TimeTaskRemindType.Add_Failed)
+                        self.replay_use_default(defaultErrorMsg, e_context)
+                        return
 
         # task入库
         taskId = self.taskManager.addTask(taskModel)
@@ -326,7 +328,7 @@ class timetask(Plugin):
             newEvent, groupTitle = model.get_Persion_makeGropTitle_eventStr()
             eventStr = newEvent
             channel_name = RobotConfig.conf().get("channel_type", "wx")
-            groupId = model.get_gropID_withGroupTitle(groupTitle, channel_name)
+            groupId = model.get_gropID_withGroupTitle(groupTitle, channel_name) or groupTitle
             other_user_id = groupId
             isGroup = True
             if len(groupId) <= 0:
@@ -416,8 +418,16 @@ class timetask(Plugin):
                         content += f"\n\nTo wxuin:{itchat.instance.loginInfo['wxuin']}\nfrom 微信好友：{quote(member.RemarkName or member.NickName)}"
                         break
             # 获取回复信息
-            replay: Reply = Bridge().fetch_reply_content(content, context)
-            self.replay_use_custom(model, replay.content, replay.type, context)
+            if context['receiver'] != 'ALL_GROUP':  # 非全群
+                replay: Reply = Bridge().fetch_reply_content(content, context)
+                self.replay_use_custom(model, replay.content, replay.type, context)
+            else:
+                for chatroom in itchat.instance.get_chatrooms():
+                    new_context = deepcopy(context)
+                    new_context['receiver'] = chatroom.UserName
+                    new_context['session_id'] = chatroom.UserName
+                    replay: Reply = Bridge().fetch_reply_content(content, new_context)
+                    self.replay_use_custom(model, replay.content, replay.type, new_context)
             return
 
         # 变量
