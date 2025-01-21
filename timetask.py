@@ -391,7 +391,7 @@ class timetask(Plugin):
                 # 排除的微信好友（备注）
                 excluded_friends: list = EACH_FRIEND_conf.get("excluded_friends", [])
                 # 最新全部好友
-                friends = itchat.instance.get_friends(True)
+                friends = itchat.instance.get_friends(True)  # fixme itchat已经作废
                 # 排除首个好友即自己
                 friends.pop(0)
                 for member in friends:
