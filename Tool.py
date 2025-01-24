@@ -2,6 +2,8 @@
 # -*- coding: UTF-8 -*-
 
 import os
+import traceback
+
 from openpyxl import Workbook
 from openpyxl import load_workbook
 from openpyxl.styles import NamedStyle
@@ -13,6 +15,7 @@ from typing import List
 import time
 from datetime import datetime
 from lib import itchat
+from lib.gewechat import GewechatClient
 from lib.itchat.content import *
 from channel.chat_message import ChatMessage
 from croniter import croniter
@@ -406,7 +409,7 @@ class TimeTaskModel:
     # 12：原始内容 - 原始的消息体
     # 13：今天是否被消息 - 每天会在凌晨自动重置
     def __init__(self, item, msg: ChatMessage, isNeedFormat: bool, isNeedCalculateCron=False):
-
+        self.msg = msg
         self.isNeedCalculateCron = isNeedCalculateCron
         self.taskId = item[0]
         self.enable = item[1] == "1"
@@ -934,6 +937,18 @@ class TimeTaskModel:
             except Exception as e:
                 print(f"[{channel_name}通道] 通过 群Title 获取群ID发生错误，错误信息为：{e}")
                 return tempRoomId
+        elif channel_name == "gewechat":
+            tempRoomId = ""
+            try:
+                contacts_list: dict = self.msg.client.fetch_contacts_list(self.msg.app_id)
+                for chatroom in contacts_list['data']['chatrooms']:
+                    chatroom_info = self.msg.client.get_chatroom_info(self.msg.app_id, chatroom)
+                    if chatroom_info['data']['nickName'] == groupTitle:
+                        tempRoomId = chatroom
+                        return tempRoomId
+            except:
+                traceback.print_exc()
+
         else:  # todo 适配gewechat
             print(f"[{channel_name}通道] 通过 群Title 获取群ID 不支持的channel，channel为：{channel_name}")
             return ""
