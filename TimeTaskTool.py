@@ -1,4 +1,5 @@
 # encoding:utf-8
+import traceback
 
 from plugins.timetask.Tool import ExcelTool
 from plugins.timetask.Tool import TimeTaskModel
