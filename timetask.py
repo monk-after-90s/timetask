@@ -17,11 +17,11 @@ import arrow
 from plugins.timetask.Tool import ExcelTool
 from bridge.bridge import Bridge
 import config as RobotConfig
-import requests
-import io
 import time
 import gc
 from channel import channel_factory
+
+profile = None
 
 
 class TimeTaskRemindType(Enum):
@@ -52,8 +52,15 @@ class timetask(Plugin):
         self.conf = conf()
         self.taskManager = TaskManager(self.runTimeTask)
         self.channel = None
+        # gewechat特定参数
+        self._gewechat_client = None
+        self._app_id = ""
 
     def on_handle_context(self, e_context: EventContext):
+        # 填充属性
+        self._gewechat_client = self._gewechat_client or e_context["channel"].client
+        self._app_id = self._app_id or e_context["channel"].app_id
+
         if self.channel is None:
             self.channel = e_context["channel"]
             logging.debug(f"本次的channel为：{self.channel}")
@@ -209,10 +216,9 @@ class timetask(Plugin):
                 self.replay_use_default(defaultErrorMsg, e_context)
                 return
             else:
-                channel_name = RobotConfig.conf().get("channel_type", "wx")
                 # 所有群
                 if "ALL_GROUP" != groupTitle:
-                    groupId = taskModel.get_gropID_withGroupTitle(groupTitle, channel_name)
+                    groupId = taskModel.get_gropID_withGroupTitle(groupTitle, self.channel.channel_type)
                     if len(groupId) <= 0:
                         defaultErrorMsg = f"⏰定时任务指令格式异常😭，未找到群名为【{groupTitle}】的群聊，请核查！" + self.get_default_remind(
                             TimeTaskRemindType.Add_Failed)
@@ -300,8 +306,7 @@ class timetask(Plugin):
             reply = Reply()
             reply.type = replyType
             reply.content = reply_text
-            channel_name = RobotConfig.conf().get("channel_type", "wx")
-            channel = channel_factory.create_channel(channel_name)
+            channel = channel_factory.create_channel(self.channel.channel_type)
             channel.send(reply, context)
 
             # 释放
@@ -313,9 +318,18 @@ class timetask(Plugin):
                 time.sleep(3 + 3 * retry_cnt)
                 self.replay_use_custom(model, reply_text, replyType, context, retry_cnt + 1)
 
+    def content_modifier(self, content: str, from_wxuin: str = ""):
+        """发给gpt的内容的修改器"""
+        if self.channel == "gewechat":
+            if self.conf.get("append_signature_to_gpt", False) and self._gewechat_client:
+                global profile
+                profile = profile or (profile := self._gewechat_client.get_profile(self._app_id))
+                to_wxuin = profile['data']['nickName'] or profile['data']['alias'] or profile['data']['wxid']
+                content += f"\n\nTo wxuin:{to_wxuin}\nfrom 微信好友：{from_wxuin}"
+        return content
+
     # 执行定时task
     def runTimeTask(self, model: TimeTaskModel):
-
         # 事件内容
         eventStr = model.eventStr
         # 发送的用户ID
@@ -327,8 +341,7 @@ class timetask(Plugin):
         if model.isPerson_makeGrop():
             newEvent, groupTitle = model.get_Persion_makeGropTitle_eventStr()
             eventStr = newEvent
-            channel_name = RobotConfig.conf().get("channel_type", "wx")
-            groupId = model.get_gropID_withGroupTitle(groupTitle, channel_name) or groupTitle
+            groupId = model.get_gropID_withGroupTitle(groupTitle, self.channel.channel_type) or groupTitle
             other_user_id = groupId
             isGroup = True
             if len(groupId) <= 0:
@@ -383,7 +396,9 @@ class timetask(Plugin):
                 content = content.replace(img_match_prefix, "", 1)
                 context.type = ContextType.IMAGE_CREATE
             # EACH_FRIEND 每人都发
-            if len(fragments := content.split(" ")) >= 2 and "EACH_FRIEND" in fragments[1]:
+            if (len(fragments := content.split(" ")) >= 2 and
+                    "EACH_FRIEND" in fragments[1] and
+                    content_dict['isgroup'] == 'False'):
                 EACH_FRIEND_conf: dict = {}
                 match = re.search(r'\((.*)\)', fragments[1].strip())
                 if match:
@@ -391,52 +406,90 @@ class timetask(Plugin):
                 # 排除的微信好友（备注）
                 excluded_friends: list = EACH_FRIEND_conf.get("excluded_friends", [])
                 # 最新全部好友
-                friends = itchat.instance.get_friends(True)  # fixme itchat已经作废
-                # 排除首个好友即自己
-                friends.pop(0)
-                for member in friends:
-                    if (member.RemarkName or member.NickName) in excluded_friends:
-                        continue
+                if self.channel.channel_type == "wx":
+                    friends = itchat.instance.get_friends(True)
+                    friends.pop(0)
+                    for member in friends:
+                        if (member.RemarkName or member.NickName) in excluded_friends:
+                            continue
 
-                    # 获取回复信息
-                    context1: Context = deepcopy(context)
-                    context1['receiver'] = member.UserName
-                    replay: Reply = \
-                        Bridge().fetch_reply_content(
-                            fragments[0] + (
-                                f"\n\nTo wxuin:{itchat.instance.loginInfo['wxuin']}\nfrom 微信好友：{quote(member.RemarkName or member.NickName)}"
-                                if self.conf.get("append_signature_to_gpt", False) else ""
-                            ),
+                        # 获取回复信息
+                        context1: Context = deepcopy(context)
+                        context1['receiver'] = member.UserName
+                        replay: Reply = \
+                            Bridge().fetch_reply_content(
+                                fragments[0] + (
+                                    f"\n\nTo wxuin:{itchat.instance.loginInfo['wxuin']}\nfrom 微信好友：{quote(member.RemarkName or member.NickName)}"
+                                    if self.conf.get("append_signature_to_gpt", False) else ""
+                                ),
+                                context1)
+                        self.replay_use_custom(model, replay.content, replay.type, context1)
+                elif self.channel.channel_type == "gewechat":
+                    contacts_list: dict = model.last_msg.client.fetch_contacts_list(model.last_msg.app_id)
+                    friends = model.last_msg.client.get_brief_info(model.last_msg.app_id,
+                                                                   contacts_list['data']['friends'])
+                    for friend in friends['data']:
+                        # 排除的微信好友，备注名、昵称、微信号、wxid任何一个都可以触发排除 微信自带功能性好友如微信团队、微信团队（电脑）等也排除
+                        if (friend['remark'] in excluded_friends or
+                                friend['nickName'] in excluded_friends or
+                                friend['alias'] in excluded_friends or
+                                friend['userName'] in excluded_friends or
+                                friend['userName'] == 'fmessage' or
+                                friend['userName'] == 'weixin' or
+                                friend['userName'] == 'medianote' or
+                                friend['userName'] == 'qqmail' or
+                                friend['userName'] == 'qmessage' or
+                                friend['userName'] == 'floatbottle'):
+                            continue
+                        # 回复给朋友
+                        context1: Context = deepcopy(context)
+                        context1['receiver'] = friend['userName']
+                        replay: Reply = Bridge().fetch_reply_content(
+                            self.content_modifier(fragments[0], quote(friend['remark'] in excluded_friends or
+                                                                      friend['nickName'] in excluded_friends or
+                                                                      friend['alias'] in excluded_friends or
+                                                                      friend['userName'] in excluded_friends)),
                             context1)
-                    self.replay_use_custom(model, replay.content, replay.type, context1)
-                return
-            # GPT处理中，发给GPT的消息是否带签名，例如“夸夸我\n\nTo wxuin:505085347\nfrom 微信好友：%E6%AD%A4%E5%B2%B8”
-            elif self.conf.get("append_signature_to_gpt", False):
-                friends = itchat.instance.get_friends(True)
-                for member in friends:
-                    if member.UserName == content_dict['from_user_id']:
-                        content += f"\n\nTo wxuin:{itchat.instance.loginInfo['wxuin']}\nfrom 微信好友：{quote(member.RemarkName or member.NickName)}"
-                        break
-            # 获取回复信息
-            if context['receiver'] != 'ALL_GROUP':  # 非全群
-                replay: Reply = Bridge().fetch_reply_content(content, context)
-                self.replay_use_custom(model, replay.content, replay.type, context)
-            else:
-                if 'gewechat' == channel_name:
+                        self.replay_use_custom(model, replay.content, replay.type, context1)
+            elif context['receiver'] == 'ALL_GROUP':  # 每群都发
+                if 'gewechat' == self.channel.channel_type:
                     contacts_list: dict = model.last_msg.client.fetch_contacts_list(model.last_msg.app_id)
                     for chatroom in contacts_list['data']['chatrooms']:
                         new_context = deepcopy(context)
                         new_context['receiver'] = chatroom
                         new_context['session_id'] = chatroom
-                        replay: Reply = Bridge().fetch_reply_content(content, new_context)
+                        replay: Reply = Bridge().fetch_reply_content(self.content_modifier(content, quote(chatroom)),
+                                                                     new_context)
                         self.replay_use_custom(model, replay.content, replay.type, new_context)
-                else:  # wx channel应该是已经被微信永远封禁
+                else:  # wx channel应该是已经被微信永远封禁了
                     for chatroom in itchat.instance.get_chatrooms():
                         new_context = deepcopy(context)
                         new_context['receiver'] = chatroom.UserName
                         new_context['session_id'] = chatroom.UserName
                         replay: Reply = Bridge().fetch_reply_content(content, new_context)
                         self.replay_use_custom(model, replay.content, replay.type, new_context)
+            # 普通单人任务
+            elif not content_dict['isgroup']:
+                if self.channel.channel_type == "wx":
+                    friends = itchat.instance.get_friends(True)
+                    for member in friends:
+                        if member.UserName == content_dict['from_user_id']:
+                            content += f"\n\nTo wxuin:{itchat.instance.loginInfo['wxuin']}\nfrom 微信好友：{quote(member.RemarkName or member.NickName)}"
+                            break
+                elif self.channel.channel_type == "gewechat":
+                    if self.conf.get("append_signature_to_gpt", False):
+                        friends = self._gewechat_client.get_brief_info(self._app_id,
+                                                                       [content_dict['from_user_id']])
+                        friend = friends[0]
+                        content = self.content_modifier(content, quote(
+                            friend['remark'] or friend['nickName'] or friend['alias'] or friend['userName']))
+                    replay: Reply = Bridge().fetch_reply_content(content, context)
+                    self.replay_use_custom(model, replay.content, replay.type, context)
+            # 普通群任务
+            elif content_dict['isgroup']:
+                replay: Reply = Bridge().fetch_reply_content(
+                    self.content_modifier(content, quote(context['receiver'])), context)
+                self.replay_use_custom(model, replay.content, replay.type, context)
             return
 
         # 变量
