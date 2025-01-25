@@ -422,12 +422,21 @@ class timetask(Plugin):
                 replay: Reply = Bridge().fetch_reply_content(content, context)
                 self.replay_use_custom(model, replay.content, replay.type, context)
             else:
-                for chatroom in itchat.instance.get_chatrooms():
-                    new_context = deepcopy(context)
-                    new_context['receiver'] = chatroom.UserName
-                    new_context['session_id'] = chatroom.UserName
-                    replay: Reply = Bridge().fetch_reply_content(content, new_context)
-                    self.replay_use_custom(model, replay.content, replay.type, new_context)
+                if 'gewechat' == channel_name:
+                    contacts_list: dict = model.last_msg.client.fetch_contacts_list(model.last_msg.app_id)
+                    for chatroom in contacts_list['data']['chatrooms']:
+                        new_context = deepcopy(context)
+                        new_context['receiver'] = chatroom
+                        new_context['session_id'] = chatroom
+                        replay: Reply = Bridge().fetch_reply_content(content, new_context)
+                        self.replay_use_custom(model, replay.content, replay.type, new_context)
+                else:  # wx channel应该是已经被微信永远封禁
+                    for chatroom in itchat.instance.get_chatrooms():
+                        new_context = deepcopy(context)
+                        new_context['receiver'] = chatroom.UserName
+                        new_context['session_id'] = chatroom.UserName
+                        replay: Reply = Bridge().fetch_reply_content(content, new_context)
+                        self.replay_use_custom(model, replay.content, replay.type, new_context)
             return
 
         # 变量
