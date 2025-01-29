@@ -320,7 +320,7 @@ class timetask(Plugin):
 
     def content_modifier(self, content: str, from_wxuin: str = ""):
         """发给gpt的内容的修改器"""
-        if self.channel == "gewechat":
+        if self.channel.channel_type == "gewechat":
             if self.conf.get("append_signature_to_gpt", False) and self._gewechat_client:
                 global profile
                 profile = profile or (profile := self._gewechat_client.get_profile(self._app_id))
@@ -398,12 +398,12 @@ class timetask(Plugin):
             # EACH_FRIEND 每人都发
             if (len(fragments := content.split(" ")) >= 2 and
                     "EACH_FRIEND" in fragments[1] and
-                    content_dict['isgroup'] == 'False'):
+                    not content_dict['isgroup']):
                 EACH_FRIEND_conf: dict = {}
                 match = re.search(r'\((.*)\)', fragments[1].strip())
                 if match:
                     EACH_FRIEND_conf: dict = json.loads(match.group(1))
-                # 排除的微信好友（备注）
+                # 排除的微信好友
                 excluded_friends: list = EACH_FRIEND_conf.get("excluded_friends", [])
                 # 最新全部好友
                 if self.channel.channel_type == "wx":
@@ -445,10 +445,10 @@ class timetask(Plugin):
                         context1: Context = deepcopy(context)
                         context1['receiver'] = friend['userName']
                         replay: Reply = Bridge().fetch_reply_content(
-                            self.content_modifier(fragments[0], quote(friend['remark'] in excluded_friends or
-                                                                      friend['nickName'] in excluded_friends or
-                                                                      friend['alias'] in excluded_friends or
-                                                                      friend['userName'] in excluded_friends)),
+                            self.content_modifier(fragments[0], quote(friend['remark'] or
+                                                                      friend['nickName'] or
+                                                                      friend['alias'] or
+                                                                      friend['userName'])),
                             context1)
                         self.replay_use_custom(model, replay.content, replay.type, context1)
             elif context['receiver'] == 'ALL_GROUP':  # 每群都发
