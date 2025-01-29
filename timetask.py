@@ -480,7 +480,7 @@ class timetask(Plugin):
                     if self.conf.get("append_signature_to_gpt", False):
                         friends = self._gewechat_client.get_brief_info(self._app_id,
                                                                        [content_dict['from_user_id']])
-                        friend = friends[0]
+                        friend = friends['data'][0]
                         content = self.content_modifier(content, quote(
                             friend['remark'] or friend['nickName'] or friend['alias'] or friend['userName']))
                     replay: Reply = Bridge().fetch_reply_content(content, context)
