@@ -160,7 +160,7 @@ class timetask(Plugin):
                 tempTimeStr = f"{taskModel.circleTimeStr} {taskModel.timeStr}"
                 if taskModel.isCron_time():
                     tempTimeStr = f"{taskModel.circleTimeStr}"
-                reply_text = reply_text + f"【{taskModel.taskId}】@{taskModel.fromUser}: {tempTimeStr} {taskModel.eventStr}\n"
+                reply_text = reply_text + f"【{taskModel.taskId}】@{taskModel.fromUser or taskModel.other_user_nickname or taskModel.fromUser_id or taskModel.other_user_id}: {tempTimeStr} {taskModel.eventStr}\n"
                 # 移除最后一个换行
             reply_text = reply_text.rstrip('\n')
 
