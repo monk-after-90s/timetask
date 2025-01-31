@@ -3,7 +3,7 @@
 
 import os
 import traceback
-
+import config as RobotConfig
 from openpyxl import Workbook
 from openpyxl import load_workbook
 from openpyxl.styles import NamedStyle
@@ -14,6 +14,8 @@ import re
 from typing import List
 import time
 from datetime import datetime
+
+from channel import channel_factory
 from lib import itchat
 from lib.gewechat import GewechatClient
 from lib.itchat.content import *
@@ -408,12 +410,8 @@ class TimeTaskModel:
     # 11：isGroup - 0/1，是否群聊； 0=否，1=是
     # 12：原始内容 - 原始的消息体
     # 13：今天是否被消息 - 每天会在凌晨自动重置
-    last_msg: ChatMessage = None
 
     def __init__(self, item, msg: ChatMessage, isNeedFormat: bool, isNeedCalculateCron=False):
-        if msg:
-            type(self).last_msg = msg
-
         self.isNeedCalculateCron = isNeedCalculateCron
         self.taskId = item[0]
         self.enable = item[1] == "1"
@@ -944,9 +942,11 @@ class TimeTaskModel:
         elif channel_name == "gewechat":
             tempRoomId = ""
             try:
-                contacts_list: dict = self.last_msg.client.fetch_contacts_list(self.last_msg.app_id)
+                contacts_list: dict = channel_factory.create_channel(channel_name).client.fetch_contacts_list(
+                    RobotConfig.conf()['gewechat_app_id'])
                 for chatroom in contacts_list['data']['chatrooms']:
-                    chatroom_info = self.last_msg.client.get_chatroom_info(self.last_msg.app_id, chatroom)
+                    chatroom_info = channel_factory.create_channel(channel_name).client.get_chatroom_info(
+                        RobotConfig.conf()['gewechat_app_id'], chatroom)
                     if chatroom_info['data']['nickName'] == groupTitle:
                         tempRoomId = chatroom
                         return tempRoomId

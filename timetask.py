@@ -425,9 +425,12 @@ class timetask(Plugin):
                                 context1)
                         self.replay_use_custom(model, replay.content, replay.type, context1)
                 elif RobotConfig.conf()['channel_type'] == "gewechat":
-                    contacts_list: dict = model.last_msg.client.fetch_contacts_list(model.last_msg.app_id)
-                    friends = model.last_msg.client.get_brief_info(model.last_msg.app_id,
-                                                                   contacts_list['data']['friends'])
+                    contacts_list: dict = channel_factory.create_channel(
+                        RobotConfig.conf()['channel_type']).client.fetch_contacts_list(
+                        RobotConfig.conf()['gewechat_app_id'])
+                    friends = channel_factory.create_channel(RobotConfig.conf()['channel_type']).client.get_brief_info(
+                        RobotConfig.conf()['gewechat_app_id'],
+                        contacts_list['data']['friends'])
                     for friend in friends['data']:
                         # 排除的微信好友，备注名、昵称、微信号、wxid任何一个都可以触发排除 微信自带功能性好友如微信团队、微信团队（电脑）等也排除
                         if (friend['remark'] in excluded_friends or
@@ -453,7 +456,9 @@ class timetask(Plugin):
                         self.replay_use_custom(model, replay.content, replay.type, context1)
             elif context['receiver'] == 'ALL_GROUP':  # 每群都发
                 if 'gewechat' == RobotConfig.conf()['channel_type']:
-                    contacts_list: dict = model.last_msg.client.fetch_contacts_list(model.last_msg.app_id)
+                    contacts_list: dict = channel_factory.create_channel(
+                        RobotConfig.conf()['channel_type']).client.fetch_contacts_list(
+                        RobotConfig.conf()['gewechat_app_id'])
                     for chatroom in contacts_list['data']['chatrooms']:
                         new_context = deepcopy(context)
                         new_context['receiver'] = chatroom
