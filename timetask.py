@@ -218,7 +218,7 @@ class timetask(Plugin):
             else:
                 # 所有群
                 if "ALL_GROUP" != groupTitle:
-                    groupId = taskModel.get_gropID_withGroupTitle(groupTitle, self.channel.channel_type)
+                    groupId = taskModel.get_gropID_withGroupTitle(groupTitle, RobotConfig.conf()['channel_type'])
                     if len(groupId) <= 0:
                         defaultErrorMsg = f"⏰定时任务指令格式异常😭，未找到群名为【{groupTitle}】的群聊，请核查！" + self.get_default_remind(
                             TimeTaskRemindType.Add_Failed)
@@ -306,7 +306,7 @@ class timetask(Plugin):
             reply = Reply()
             reply.type = replyType
             reply.content = reply_text
-            channel = channel_factory.create_channel(self.channel.channel_type)
+            channel = channel_factory.create_channel(RobotConfig.conf()['channel_type'])
             channel.send(reply, context)
 
             # 释放
@@ -320,7 +320,7 @@ class timetask(Plugin):
 
     def content_modifier(self, content: str, from_wxuin: str = ""):
         """发给gpt的内容的修改器"""
-        if self.channel.channel_type == "gewechat":
+        if RobotConfig.conf()['channel_type'] == "gewechat":
             if self.conf.get("append_signature_to_gpt", False) and self._gewechat_client:
                 global profile
                 profile = profile or (profile := self._gewechat_client.get_profile(self._app_id))
@@ -341,7 +341,7 @@ class timetask(Plugin):
         if model.isPerson_makeGrop():
             newEvent, groupTitle = model.get_Persion_makeGropTitle_eventStr()
             eventStr = newEvent
-            groupId = model.get_gropID_withGroupTitle(groupTitle, self.channel.channel_type) or groupTitle
+            groupId = model.get_gropID_withGroupTitle(groupTitle, RobotConfig.conf()['channel_type']) or groupTitle
             other_user_id = groupId
             isGroup = True
             if len(groupId) <= 0:
@@ -406,7 +406,7 @@ class timetask(Plugin):
                 # 排除的微信好友
                 excluded_friends: list = EACH_FRIEND_conf.get("excluded_friends", [])
                 # 最新全部好友
-                if self.channel.channel_type == "wx":
+                if RobotConfig.conf()['channel_type'] == "wx":
                     friends = itchat.instance.get_friends(True)
                     friends.pop(0)
                     for member in friends:
@@ -424,7 +424,7 @@ class timetask(Plugin):
                                 ),
                                 context1)
                         self.replay_use_custom(model, replay.content, replay.type, context1)
-                elif self.channel.channel_type == "gewechat":
+                elif RobotConfig.conf()['channel_type'] == "gewechat":
                     contacts_list: dict = model.last_msg.client.fetch_contacts_list(model.last_msg.app_id)
                     friends = model.last_msg.client.get_brief_info(model.last_msg.app_id,
                                                                    contacts_list['data']['friends'])
@@ -452,7 +452,7 @@ class timetask(Plugin):
                             context1)
                         self.replay_use_custom(model, replay.content, replay.type, context1)
             elif context['receiver'] == 'ALL_GROUP':  # 每群都发
-                if 'gewechat' == self.channel.channel_type:
+                if 'gewechat' == RobotConfig.conf()['channel_type']:
                     contacts_list: dict = model.last_msg.client.fetch_contacts_list(model.last_msg.app_id)
                     for chatroom in contacts_list['data']['chatrooms']:
                         new_context = deepcopy(context)
@@ -470,13 +470,13 @@ class timetask(Plugin):
                         self.replay_use_custom(model, replay.content, replay.type, new_context)
             # 普通单人任务
             elif not content_dict['isgroup']:
-                if self.channel.channel_type == "wx":
+                if RobotConfig.conf()['channel_type'] == "wx":
                     friends = itchat.instance.get_friends(True)
                     for member in friends:
                         if member.UserName == content_dict['from_user_id']:
                             content += f"\n\nTo wxuin:{itchat.instance.loginInfo['wxuin']}\nfrom 微信好友：{quote(member.RemarkName or member.NickName)}"
                             break
-                elif self.channel.channel_type == "gewechat":
+                elif RobotConfig.conf()['channel_type'] == "gewechat":
                     if self.conf.get("append_signature_to_gpt", False):
                         friends = self._gewechat_client.get_brief_info(self._app_id,
                                                                        [content_dict['from_user_id']])
