@@ -175,4 +175,4 @@ Tips：拓展功能需要项目已安装该插件，更多自定义插件支持�
 
 ### **六、TDLT**
 
-- [ ] itchat已经作废，重新测试以适配gewechat
+- [x] itchat已经作废，重新测试以适配gewechat

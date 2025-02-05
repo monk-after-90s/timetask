@@ -954,6 +954,6 @@ class TimeTaskModel:
                 traceback.print_exc()
             return tempRoomId
 
-        else:  # todo 适配gewechat
+        else:
             print(f"[{channel_name}通道] 通过 群Title 获取群ID 不支持的channel，channel为：{channel_name}")
             return ""
