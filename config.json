@@ -9,7 +9,7 @@
   "is_need_currentTime_whenNormalReply": true,
   "is_need_identifier_whenNormalReply": true,
   "is_need_detailDeccription_whenNormalReply": true,
-  "append_signature_to_gpt": false,
+  "append_signature_to_gpt": true,
   "extension_function": [
     {
       "key_word": "早报",
