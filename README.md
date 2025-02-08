@@ -128,7 +128,7 @@ Tips：拓展功能需要项目已安装该插件，更多自定义插件支持�
   
   #是否开启拓展功能（开启后，会识别项目中已安装的插件，如果命中 extension_function中的前缀，则会将消息路由转发给目标插件）
   "is_open_extension_function": true,
-  #GPT消息中，是否添加消息签名，告诉GPT是从哪个微信发给哪个微信，例如“你好\n\nTo wxuin:505085347\nfrom 微信好友：%E6%AD%A4%E5%B2%B8”
+  #GPT消息中，是否添加消息签名，告诉GPT是从哪个微信id发给哪个微信id，例如“你好\n\nTo wxuin:505085347\nfrom 微信好友：t5t34trt3”
   "append_signature_to_gpt": true,
   #支持的拓展功能列表（理论上 已安装的插件，均支持路由转发，其他插件可自主配置，参考早报的配置方式）
   "extension_function":

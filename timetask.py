@@ -324,7 +324,7 @@ class timetask(Plugin):
             if self.conf.get("append_signature_to_gpt", False) and self._gewechat_client:
                 global profile
                 profile = profile or (profile := self._gewechat_client.get_profile(self._app_id))
-                to_wxuin = profile['data']['nickName'] or profile['data']['alias'] or profile['data']['wxid']
+                to_wxuin = profile['data']['wxid']
                 content += f"\n\nTo wxuin:{to_wxuin}\nfrom 微信好友：{from_wxuin}"
         return content
 
@@ -482,12 +482,7 @@ class timetask(Plugin):
                             content += f"\n\nTo wxuin:{itchat.instance.loginInfo['wxuin']}\nfrom 微信好友：{quote(member.RemarkName or member.NickName)}"
                             break
                 elif RobotConfig.conf()['channel_type'] == "gewechat":
-                    if self.conf.get("append_signature_to_gpt", False):
-                        friends = self._gewechat_client.get_brief_info(self._app_id,
-                                                                       [content_dict['from_user_id']])
-                        friend = friends['data'][0]
-                        content = self.content_modifier(content, quote(
-                            friend['remark'] or friend['nickName'] or friend['alias'] or friend['userName']))
+                    content = self.content_modifier(content, content_dict['from_user_id'])
                     replay: Reply = Bridge().fetch_reply_content(content, context)
                     self.replay_use_custom(model, replay.content, replay.type, context)
             # 普通群任务
