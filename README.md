@@ -69,7 +69,8 @@ ALL_GROUP: GPT消息中，为所有群添加此定时
 文案提醒效果：将在对应时间点，自动提醒（如：提醒我健身）
 
 Tips：拓展功能需要项目已安装该插件，更多自定义插件支持可在
- timetask/config.json 的 extension_function 自助配置即可。
+ timetask/config.json 的 extension_function 自助配置即可
+使用gewechat时，若要群定时任务生效，强烈建议在微信上将目标群“保存到通讯录”
 ```
 
 ![添加定时任务](https://github.com/haikerapples/timetask/blob/master/images/addTask_all.jpg)
